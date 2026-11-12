@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Cinépolis Lakeshore Mall IMAX — 3D Seat Sightline Preview</title>
+  <style>
+    :root {
+      --accent: #7CE3B3;          /* Mint Accent for Selected Seat & Buttons */
+      --accent-text: #091E14;     /* Deep Forest Contrast Text */
+      --bg-outer: #050507;
+      --phone-bg: #0D0D11;
+      --seat-avail: #262830;      /* Cool Charcoal Available Seats (Rows A–J on 2D Map) */
+      --seat-vip: #4D2A35;        /* Burgundy-Red VIP Seats (Rows K–Q on 2D Map & All 3D Seats) */
+      --seat-taken: #15161B;      /* Taken Seats on 2D Map */
+      --text-main: #F3F4F6;
+      --text-muted: #8E929F;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      background-color: var(--bg-outer);
+      color: var(--text-main);
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* --- PHONE FRAME --- */
+    .phone-frame {
+      width: 412px;
+      height: 94%;
+      max-height: 860px;
+      max-width: 96vw;
+      background: var(--phone-bg);
+      border-radius: 42px;
+      border: 8px solid #1e1e26;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.07);
+      position: relative;
+      overflow: hidden;
+    }
+
+    @media (max-width: 480px) {
+      .phone-frame {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        max-width: none;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+    }
+
+    /* =====================================================================
+       LAYER 1: 2D NATIVE SEAT MAP LAYER (WITH PINCH-TO-ZOOM VIEWPORT)
+       ===================================================================== */
+    .map-2d-layer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding-bottom: env(safe-area-inset-bottom, 8px);
+      background: radial-gradient(circle at 50% 18%, #1a1924 0%, #0d0d11 70%);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .map-2d-layer.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.04);
+    }
+
+    .app-header {
+      padding: 12px 16px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      z-index: 5;
+      background: linear-gradient(180deg, rgba(13, 13, 17, 0.95) 75%, rgba(13, 13, 17, 0) 100%);
+    }
+
+    .header-top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .icon-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    .cinema-title-block {
+      text-align: center;
+    }
+
+    .cinema-title-block h1 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .cinema-title-block p {
+      font-size: 0.67rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .showtime-pills {
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .time-pill {
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.71rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .time-pill span {
+      font-size: 0.6rem;
+      opacity: 0.75;
+      margin-left: 2px;
+    }
+
+    .time-pill.active {
+      background: #ffffff;
+      color: #09090b;
+      font-weight: 700;
+    }
+
+    /* --- PINCH-TO-ZOOM & PAN VIEWPORT --- */
+    .map-zoom-viewport {
+      flex: 1 1 auto;
+      min-height: 260px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .map-zoom-viewport:active {
+      cursor: grabbing;
+    }
+
+    .map-zoom-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transform-origin: 50% 50%;
+      will-change: transform;
+      transition: transform 0.08s ease-out;
+    }
+
+    .map-zoom-content.pinching {
+      transition: none;
+    }
+
+    /* Floating Reset Zoom Pill */
+    .zoom-reset-pill {
+      position: absolute;
+      bottom: 10px;
+      right: 14px;
+      background: rgba(20, 26, 24, 0.92);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      z-index: 8;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .zoom-reset-pill.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .zoom-hint-badge {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
+      color: rgba(255, 255, 255, 0.42);
+      pointer-events: none;
+      z-index: 6;
+      white-space: nowrap;
+    }
+
+    .screen-arc-wrapper {
+      width: 100%;
+      padding: 6px 24px 4px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .screen-arc-svg {
+      width: 100%;
+      height: 20px;
+      overflow: visible;
+    }
+
+    .screen-label {
+      font-size: 0.55rem;
+      letter-spacing: 4px;
+      color: var(--text-muted);
+      margin-top: -2px;
+      font-weight: 600;
+    }
+
+    .seat-grid-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 3.5px;
+      padding: 6px 6px 10px;
+    }
+
+    .seat-row {
+      width: 100%;
+      min-height: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .seat-row.cross-aisle-top {
+      margin-top: 5px;
+    }
+
+    .row-letter {
+      width: 12px;
+      font-size: 0.54rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: right;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+
+    .seats-track {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .aisle-spacer {
+      width: 5px;
+      height: 10px;
+      flex-shrink: 0;
+    }
+
+    .seat-dot {
+      width: 10px;
+      height: 10px;
+      min-width: 10px;
+      min-height: 10px;
+      border-radius: 2.8px;
+      background-color: var(--seat-avail);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.44rem;
+      font-weight: 800;
+      color: transparent;
+      flex-shrink: 0;
+      transition: transform 0.14s ease, background-color 0.14s ease;
+    }
+
+    /* Reddish-Burgundy VIP Tier on 2D Map (Rows K–Q) */
+    .seat-dot.vip {
+      background-color: var(--seat-vip);
+      border-color: rgba(248, 113, 113, 0.32);
+    }
+
+    .seat-dot.taken {
+      background-color: var(--seat-taken);
+      border-color: rgba(255, 255, 255, 0.03);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .seat-dot.selected {
+      background-color: var(--accent) !important;
+      color: var(--accent-text) !important;
+      border-color: #ffffff;
+      -webkit-transform: scale(1.55);
+      transform: scale(1.55);
+      box-shadow: 0 0 10px var(--accent);
+      z-index: 3;
+    }
+
+    .bottom-dock-wrapper {
+      flex-shrink: 0;
+      padding: 4px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      z-index: 5;
+      background: linear-gradient(0deg, rgba(13, 13, 17, 0.98) 80%, rgba(13, 13, 17, 0) 100%);
+    }
+
+    .legend-bar {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      padding: 2px 0;
+      font-size: 0.66rem;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 2.5px;
+      display: inline-block;
+    }
+
+    .bottom-bar-2d {
+      padding: 11px 16px;
+      background: rgba(24, 24, 30, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .selected-summary-2d .sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .selected-summary-2d .price {
+      font-size: 1.06rem;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    .btn-continue-2d {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      padding: 11px 24px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* =====================================================================
+       LAYER 2: BUILT-IN 3D CANVAS VIEWPORT & SIGHTLINE BOTTOM SHEET
+       ===================================================================== */
+    #canvas-3d-wrapper {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 1;
+      background: #08070a;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    #theater-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .pov-top-bar {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+
+    .pov-top-bar.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .pov-status-pill {
+      background: rgba(20, 22, 26, 0.85);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0 auto;
+      transform: translateX(-17px);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .pov-bottom-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, rgba(16, 18, 22, 0.94) 0%, rgba(10, 11, 14, 0.99) 100%);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px 24px 0 0;
+      padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 6px));
+      z-index: 20;
+      -webkit-transform: translateY(105%);
+      transform: translateY(105%);
+      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .pov-bottom-sheet.visible {
+      -webkit-transform: translateY(0%);
+      transform: translateY(0%);
+    }
+
+    .pov-bottom-sheet.minimized {
+      -webkit-transform: translateY(calc(100% - 62px));
+      transform: translateY(calc(100% - 62px));
+    }
+
+    .sheet-handle-area {
+      width: 100%;
+      padding: 4px 0 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+    }
+
+    .sheet-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .Zone-badge {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1px;
+    }
+
+    .sheet-seat-title {
+      font-size: 1.18rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .sheet-tier-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .mini-radar {
+      width: 72px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9px;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mini-radar-arc {
+      width: 85%;
+      height: 3px;
+      border-top: 2px solid rgba(255, 255, 255, 0.65);
+      border-radius: 50% 50% 0 0;
+    }
+
+    .mini-radar-grid {
+      width: 100%;
+      flex: 1;
+      position: relative;
+      margin-top: 3px;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+      background-size: 5px 4px;
+    }
+
+    .mini-radar-dot {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      transform: translate(-50%, -50%);
+    }
+
+    .pov-metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .pov-metric-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 11px;
+      padding: 7px 9px;
+    }
+
+    .pov-metric-val {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .pov-metric-lbl {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .pov-actions-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-change-seat {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.09);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-book-now {
+      flex: 1.25;
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      padding: 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE APP VIEWPORT FRAME -->
+  <div class="phone-frame">
+
+    <!-- =================================================================
+         LAYER 1: CLEAN 2D SEAT MAP OVERLAY (WITH PINCH-TO-ZOOM)
+         ================================================================= -->
+    <section class="map-2d-layer" id="map-2d-layer">
+      <div class="app-header">
+        <div class="header-top-bar">
+          <div class="icon-circle">&#8249;</div>
+          <div class="cinema-title-block">
+            <h1>Cinépolis Lakeshore Mall</h1>
+            <p>IMAX Audi 1 • Thane • 17.3m × 9.6m Screen</p>
+          </div>
+          <div class="icon-circle">&#9432;</div>
+        </div>
+
+        <div class="showtime-pills">
+          <div class="time-pill">16:15 <span>3D</span></div>
+          <div class="time-pill active">19:45 <span>IMAX</span></div>
+          <div class="time-pill">22:30 <span>IMAX</span></div>
+        </div>
+      </div>
+
+      <!-- Interactive Pinch-to-Zoom & Drag Viewport -->
+      <div class="map-zoom-viewport" id="map-zoom-viewport">
+        <div class="zoom-hint-badge" id="zoom-hint-badge">Pinch or double-tap to zoom seats</div>
+
+        <div class="map-zoom-content" id="map-zoom-content">
+          <!-- Glowing Curved Screen Arc -->
+          <div class="screen-arc-wrapper">
+            <svg class="screen-arc-svg" viewBox="0 0 320 24" fill="none">
+              <defs>
+                <linearGradient id="screenGlow" x1="0" y1="0" x2="320" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="rgba(124,227,179,0.05)" />
+                  <stop offset="50%" stop-color="rgba(255,255,255,0.9)" />
+                  <stop offset="100%" stop-color="rgba(124,227,179,0.05)" />
+                </linearGradient>
+              </defs>
+              <path d="M 12 20 Q 160 2 308 20" stroke="url(#screenGlow)" stroke-width="2.5" stroke-linecap="round" />
+              <path d="M 28 22 Q 160 5 292 22" stroke="rgba(124,227,179,0.14)" stroke-width="7" stroke-linecap="round" />
+            </svg>
+            <div class="screen-label">SCREEN</div>
+          </div>
+
+          <!-- 2D Seat Grid -->
+          <div class="seat-grid-container" id="seat-grid-2d"></div>
+        </div>
+
+        <!-- Floating Reset Zoom Pill -->
+        <button class="zoom-reset-pill" id="zoom-reset-pill">Reset 1.0x</button>
+      </div>
+
+      <!-- Pinned Legend + Checkout Bar -->
+      <div class="bottom-dock-wrapper">
+        <div class="legend-bar">
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--seat-avail)"></span> Available
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--seat-taken)"></span> Taken
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--seat-vip); border:1px solid rgba(248,113,113,0.38)"></span> VIP
+          </div>
+          <div class="legend-item">
+            <span class="legend-swatch" style="background:var(--accent)"></span> Selected
+          </div>
+        </div>
+
+        <div class="bottom-bar-2d">
+          <div class="selected-summary-2d">
+            <div class="sub" id="summary-2d-seat">Row G · Seat 11 (Executive)</div>
+            <div class="price" id="summary-2d-price">₹480</div>
+          </div>
+          <button class="btn-continue-2d" id="btn-continue-3d">Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         LAYER 2: SELF-CONTAINED 3D AUDITORIUM CANVAS
+         ================================================================= -->
+    <div id="canvas-3d-wrapper">
+      <canvas id="theater-canvas"></canvas>
+    </div>
+
+    <!-- Top Floating Pill in 3D POV -->
+    <div class="pov-top-bar" id="pov-top-bar">
+      <div class="icon-circle" id="btn-back-to-2d">&#8249;</div>
+      <div class="pov-status-pill">
+        <span class="status-dot"></span>
+        <span id="pov-top-label">View from G11</span>
+      </div>
+      <div style="width:34px;"></div>
+    </div>
+
+    <!-- Compact Bottom Sightline Sheet in 3D POV -->
+    <section class="pov-bottom-sheet" id="pov-bottom-sheet">
+      <div class="sheet-handle-area" id="sheet-handle-area" title="Tap to minimize/expand card">
+        <div class="sheet-handle"></div>
+      </div>
+
+      <div class="sheet-header-row">
+        <div>
+          <div class="Zone-badge" id="pov-zone-badge">SWEET SPOT</div>
+          <div class="sheet-seat-title" id="pov-seat-title">Row G, Seat 11</div>
+          <div class="sheet-tier-sub" id="pov-tier-sub">Executive · ₹480</div>
+        </div>
+
+        <div class="mini-radar">
+          <div class="mini-radar-arc"></div>
+          <div class="mini-radar-grid">
+            <div class="mini-radar-dot" id="mini-radar-dot" style="left:50%; top:50%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pov-metrics-row">
+        <div class="pov-metric-card">
+          <div class="pov-metric-val" id="pov-dist-val">13.4 m</div>
+          <div class="pov-metric-lbl">to screen</div>
+        </div>
+        <div class="pov-metric-card">
+          <div class="pov-metric-val" id="pov-fov-val">66°</div>
+          <div class="pov-metric-lbl">field of view</div>
+        </div>
+        <div class="pov-metric-card">
+          <div class="pov-metric-val" id="pov-offset-val">0.3 m</div>
+          <div class="pov-metric-lbl" id="pov-offset-lbl">left of centre</div>
+        </div>
+      </div>
+
+      <div class="pov-actions-row">
+        <button class="btn-change-seat" id="btn-change-seat">Change seat</button>
+        <button class="btn-book-now" id="btn-book-now">Book · ₹480</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 100% SELF-CONTAINED 2D PINCH-ZOOM + 3D PERSPECTIVE ENGINE -->
+  <script>
+    // =========================================================================
+    // 1. CINEPOLIS LAKESHORE MALL THANE IMAX GEOMETRY (1 unit = 1.0 meter)
+    // =========================================================================
+    const THANE_SPEC = {
+      screenWidth: 17.3,
+      screenHeight: 9.6,
+      screenBottomY: 1.2,
+      hallHalfWidth: 9.6,       // Fits snugly around the 26-seat Row J & stadium risers
+
+      firstRowSetback: 5.4,
+      standardRowDepth: 1.18,
+      crossAisleDepth: 1.45,
+      vipRowDepth: 1.28,
+      riserStepHeight: 0.39,
+      seatPitch: 0.61,
+
+      rowLayout: [
+        { row: 'A', count: 19, tier: 'Normal',    price: 430 },
+        { row: 'B', count: 20, tier: 'Normal',    price: 430 },
+        { row: 'C', count: 22, tier: 'Normal',    price: 430 },
+        { row: 'D', count: 22, tier: 'Executive', price: 480 },
+        { row: 'E', count: 22, tier: 'Executive', price: 480 },
+        { row: 'F', count: 22, tier: 'Executive', price: 480 },
+        { row: 'G', count: 22, tier: 'Executive', price: 480 },
+        { row: 'H', count: 22, tier: 'Executive', price: 480 },
+        { row: 'J', count: 26, tier: 'Executive', price: 480 },
+        { row: 'K', count: 22, tier: 'VIP',       price: 550 },
+        { row: 'L', count: 22, tier: 'VIP',       price: 550 },
+        { row: 'M', count: 22, tier: 'VIP',       price: 550 },
+        { row: 'N', count: 22, tier: 'VIP',       price: 550 },
+        { row: 'P', count: 22, tier: 'VIP',       price: 550 },
+        { row: 'Q', count: 13, tier: 'VIP',       price: 550 }
+      ],
+
+      takenSeats: new Set([
+        'C-9', 'C-10', 'D-11', 'D-12', 'E-10', 'E-11', 'E-12',
+        'F-11', 'F-12', 'G-13', 'G-14', 'H-10', 'H-11',
+        'J-14', 'J-15', 'K-11', 'K-12', 'L-11', 'L-12', 'M-9', 'M-10'
+      ])
+    };
+
+    const SCREEN_CENTER_Y = THANE_SPEC.screenBottomY + THANE_SPEC.screenHeight / 2;
+    const SCREEN_TOP_Y = THANE_SPEC.screenBottomY + THANE_SPEC.screenHeight;
+    const HALF_SCREEN_W = THANE_SPEC.screenWidth / 2;
+
+    const seats = [];
+    const rowsMeta = [];
+    const seatById = {};
+    let selectedSeat = null;
+    const grid2DContainer = document.getElementById('seat-grid-2d');
+
+    // =========================================================================
+    // 2. BUILD 2D SEAT GRID & 3D SEAT COORDINATES
+    // =========================================================================
+    let currentZ = THANE_SPEC.firstRowSetback;
+
+    THANE_SPEC.rowLayout.forEach((rowDef, rIdx) => {
+      const isVIP = rowDef.tier === 'VIP';
+      const rowTread = isVIP ? THANE_SPEC.vipRowDepth : THANE_SPEC.standardRowDepth;
+
+      if (rIdx > 0) {
+        currentZ += rowTread;
+        if (rowDef.row === 'J') {
+          currentZ += THANE_SPEC.crossAisleDepth;
+        }
+      }
+
+      const elevationY = rIdx * THANE_SPEC.riserStepHeight;
+      const prevElevationY = rIdx > 0 ? (rIdx - 1) * THANE_SPEC.riserStepHeight : 0;
+
+      // Store exact 3D stadium step platform bounds for each row
+      const frontDeckExtension = rowDef.row === 'J' ? (THANE_SPEC.crossAisleDepth + 0.55) : 0.62;
+      rowsMeta.push({
+        row: rowDef.row,
+        rIdx: rIdx,
+        y: elevationY,
+        prevY: prevElevationY,
+        zCenter: currentZ,
+        zFront: currentZ - frontDeckExtension,
+        zBack: currentZ + 0.62,
+        isCrossAisleRow: rowDef.row === 'J'
+      });
+
+      const rowEl = document.createElement('div');
+      rowEl.className = 'seat-row' + (rowDef.row === 'J' ? ' cross-aisle-top' : '');
+
+      const letterEl = document.createElement('div');
+      letterEl.className = 'row-letter';
+      letterEl.textContent = rowDef.row;
+      rowEl.appendChild(letterEl);
+
+      const trackEl = document.createElement('div');
+      trackEl.className = 'seats-track';
+
+      const totalCols = rowDef.count;
+      const hasWings = rowDef.row !== 'Q';
+      const wingCols = rowDef.row === 'J' ? 5 : 4;
+      const rightWingStart = totalCols - wingCols + 1;
+
+      // Slightly tighter pitch on the 26-seat Row J so J-1 and J-26 align naturally with the stadium bowl
+      const rowPitch = rowDef.row === 'J' ? 0.56 : THANE_SPEC.seatPitch;
+
+      for (let col = 1; col <= totalCols; col++) {
+        if (hasWings && (col === wingCols + 1 || col === rightWingStart)) {
+          const spacer = document.createElement('div');
+          spacer.className = 'aisle-spacer';
+          trackEl.appendChild(spacer);
+        }
+
+        let aisleOffset = 0;
+        if (hasWings) {
+          const gap = rowDef.row === 'J' ? 0.22 : 0.68;
+          if (col <= wingCols) aisleOffset = -gap;
+          else if (col >= rightWingStart) aisleOffset = gap;
+        }
+
+        const xPos = (col - (totalCols / 2 + 0.5)) * rowPitch + aisleOffset;
+        const seatId = `${rowDef.row}-${col}`;
+        const isTaken = THANE_SPEC.takenSeats.has(seatId);
+
+        const dotEl = document.createElement('div');
+        dotEl.className = 'seat-dot' + (isVIP ? ' vip' : '') + (isTaken ? ' taken' : '');
+        dotEl.dataset.seatId = seatId;
+        dotEl.textContent = col;
+
+        const seatObj = {
+          id: seatId,
+          row: rowDef.row,
+          col: col,
+          rowIndex: rIdx,
+          rowTotal: totalCols,
+          tier: rowDef.tier,
+          price: rowDef.price,
+          isVIP: isVIP,
+          isTaken: isTaken,
+          x: xPos,
+          y: elevationY,
+          z: currentZ,
+          dotEl: dotEl
+        };
+
+        seatById[seatId] = seatObj;
+        trackEl.appendChild(dotEl);
+        seats.push(seatObj);
+      }
+
+      rowEl.appendChild(trackEl);
+      grid2DContainer.appendChild(rowEl);
+    });
+
+    function updateSeatHighlightAndMetrics(seat) {
+      seats.forEach(s => {
+        s.dotEl.classList.toggle('selected', s.id === seat.id);
+      });
+
+      document.getElementById('summary-2d-seat').textContent = `Row ${seat.row} · Seat ${seat.col} (${seat.tier})`;
+      document.getElementById('summary-2d-price').textContent = `₹${seat.price}`;
+
+      const eyeY = seat.y + 1.05;
+      const dx = seat.x;
+      const dy = SCREEN_CENTER_Y - eyeY;
+      const dz = seat.z;
+
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const fovRad = 2 * Math.atan(THANE_SPEC.screenWidth / (2 * distance));
+      const fovDeg = Math.round(fovRad * (180 / Math.PI));
+
+      const offsetAbs = Math.abs(dx).toFixed(1);
+      const offsetText = Math.abs(dx) < 0.32
+        ? 'centre aligned'
+        : (dx > 0 ? 'right of centre' : 'left of centre');
+
+      const zoneName = fovDeg >= 74 ? 'UP CLOSE' : fovDeg >= 52 ? 'SWEET SPOT' : 'FULL PICTURE';
+
+      document.getElementById('pov-top-label').textContent = `View from ${seat.row}${seat.col}`;
+      document.getElementById('pov-zone-badge').textContent = zoneName;
+      document.getElementById('pov-seat-title').textContent = `Row ${seat.row}, Seat ${seat.col}`;
+      document.getElementById('pov-tier-sub').textContent = `${seat.tier} · ₹${seat.price}`;
+
+      document.getElementById('pov-dist-val').textContent = `${distance.toFixed(1)} m`;
+      document.getElementById('pov-fov-val').textContent = `${fovDeg}°`;
+      document.getElementById('pov-offset-val').textContent = `${offsetAbs} m`;
+      document.getElementById('pov-offset-lbl').textContent = offsetText;
+      document.getElementById('btn-book-now').textContent = `Book · ₹${seat.price}`;
+
+      const radarX = 50 + (seat.x / 8.0) * 42;
+      const radarY = 12 + (seat.rowIndex / 14) * 78;
+      const radarDot = document.getElementById('mini-radar-dot');
+      radarDot.style.left = `${Math.max(8, Math.min(92, radarX))}%`;
+      radarDot.style.top = `${Math.max(10, Math.min(90, radarY))}%`;
+    }
+
+    function selectSeatOn2DMap(seat) {
+      if (!seat || seat.isTaken) return;
+      selectedSeat = seat;
+      updateSeatHighlightAndMetrics(seat);
+    }
+
+    selectedSeat = seatById['G-11'] || seats[0];
+    updateSeatHighlightAndMetrics(selectedSeat);
+
+    // =========================================================================
+    // 3. MOBILE PINCH-TO-ZOOM, 1-FINGER PAN & DOUBLE-TAP ZOOM CONTROLLER
+    // =========================================================================
+    const zoomViewport = document.getElementById('map-zoom-viewport');
+    const zoomContent = document.getElementById('map-zoom-content');
+    const zoomResetPill = document.getElementById('zoom-reset-pill');
+    const zoomHintBadge = document.getElementById('zoom-hint-badge');
+
+    let mapScale = 1;
+    let mapPanX = 0;
+    let mapPanY = 0;
+    const MIN_SCALE = 1;
+    const MAX_SCALE = 3.2;
+
+    function clampMapPan() {
+      const vw = zoomViewport.clientWidth || 380;
+      const vh = zoomViewport.clientHeight || 380;
+      const maxX = Math.max(0, ((vw * mapScale) - vw) * 0.52);
+      const maxY = Math.max(0, ((vh * mapScale) - vh) * 0.52);
+      mapPanX = Math.max(-maxX, Math.min(maxX, mapPanX));
+      mapPanY = Math.max(-maxY, Math.min(maxY, mapPanY));
+    }
+
+    function updateMapTransform(isImmediate = false) {
+      clampMapPan();
+      zoomContent.classList.toggle('pinching', isImmediate);
+      zoomContent.style.transform = `translate3d(${mapPanX}px, ${mapPanY}px, 0) scale(${mapScale})`;
+
+      if (mapScale > 1.04) {
+        zoomResetPill.textContent = `Reset ${mapScale.toFixed(1)}x`;
+        zoomResetPill.classList.add('visible');
+        zoomHintBadge.style.opacity = '0';
+      } else {
+        zoomResetPill.classList.remove('visible');
+        zoomHintBadge.style.opacity = '1';
+      }
+    }
+
+    function resetMapZoom() {
+      mapScale = 1;
+      mapPanX = 0;
+      mapPanY = 0;
+      updateMapTransform(false);
+    }
+
+    zoomResetPill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetMapZoom();
+    });
+
+    let isPinchingMap = false;
+    let isPanningMap = false;
+    let pinchStartDist = 0;
+    let pinchStartScale = 1;
+    let pinchCenterStart = { x: 0, y: 0 };
+    let panStartFinger = { x: 0, y: 0 };
+    let panStartOffset = { x: 0, y: 0 };
+    let touchMaxMoveDist = 0;
+    let lastTapTimestamp = 0;
+
+    function getTouchDistance(t1, t2) {
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+
+    zoomViewport.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.zoom-reset-pill')) return;
+
+      if (e.touches.length === 2) {
+        isPinchingMap = true;
+        isPanningMap = false;
+        pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
+        pinchStartScale = mapScale;
+
+        const rect = zoomViewport.getBoundingClientRect();
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) * 0.5;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) * 0.5;
+        pinchCenterStart = {
+          x: midX - (rect.left + rect.width * 0.5),
+          y: midY - (rect.top + rect.height * 0.5)
+        };
+        panStartOffset = { x: mapPanX, y: mapPanY };
+      } else if (e.touches.length === 1) {
+        isPinchingMap = false;
+        isPanningMap = true;
+        touchMaxMoveDist = 0;
+        panStartFinger = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        panStartOffset = { x: mapPanX, y: mapPanY };
+      }
+    }, { passive: true });
+
+    zoomViewport.addEventListener('touchmove', (e) => {
+      if (isPinchingMap && e.touches.length === 2) {
+        e.preventDefault();
+        const currDist = getTouchDistance(e.touches[0], e.touches[1]);
+        if (pinchStartDist > 10) {
+          const nextScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchStartScale * (currDist / pinchStartDist)));
+          const scaleRatio = nextScale / pinchStartScale;
+
+          mapPanX = pinchCenterStart.x * (1 - scaleRatio) + panStartOffset.x * scaleRatio;
+          mapPanY = pinchCenterStart.y * (1 - scaleRatio) + panStartOffset.y * scaleRatio;
+          mapScale = nextScale;
+          updateMapTransform(true);
+        }
+      } else if (isPanningMap && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - panStartFinger.x;
+        const dy = e.touches[0].clientY - panStartFinger.y;
+        touchMaxMoveDist = Math.max(touchMaxMoveDist, Math.hypot(dx, dy));
+
+        if (mapScale > 1.02 && touchMaxMoveDist > 5) {
+          e.preventDefault();
+          mapPanX = panStartOffset.x + dx;
+          mapPanY = panStartOffset.y + dy;
+          updateMapTransform(true);
+        }
+      }
+    }, { passive: false });
+
+    zoomViewport.addEventListener('touchend', (e) => {
+      if (e.target.closest('.zoom-reset-pill')) return;
+
+      if (e.touches.length === 0) {
+        if (!isPinchingMap && touchMaxMoveDist < 8 && e.changedTouches.length === 1) {
+          const touch = e.changedTouches[0];
+          const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+          const seatDot = targetEl ? targetEl.closest('.seat-dot') : null;
+
+          if (seatDot && seatDot.dataset.seatId) {
+            selectSeatOn2DMap(seatById[seatDot.dataset.seatId]);
+          } else {
+            const now = performance.now();
+            if (now - lastTapTimestamp < 280) {
+              if (mapScale > 1.2) {
+                resetMapZoom();
+              } else {
+                const rect = zoomViewport.getBoundingClientRect();
+                const offsetX = touch.clientX - (rect.left + rect.width * 0.5);
+                const offsetY = touch.clientY - (rect.top + rect.height * 0.5);
+                mapScale = 2.2;
+                mapPanX = -offsetX * 1.1;
+                mapPanY = -offsetY * 1.1;
+                updateMapTransform(false);
+              }
+              lastTapTimestamp = 0;
+            } else {
+              lastTapTimestamp = now;
+            }
+          }
+        }
+
+        isPinchingMap = false;
+        isPanningMap = false;
+        zoomContent.classList.remove('pinching');
+      } else if (e.touches.length === 1) {
+        isPinchingMap = false;
+        isPanningMap = true;
+        touchMaxMoveDist = 99;
+        panStartFinger = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        panStartOffset = { x: mapPanX, y: mapPanY };
+      }
+    });
+
+    // Desktop Mouse-Wheel Zoom + Drag Pan + Click Selection Support
+    let isMouseDown2D = false;
+    let mouseDragDist = 0;
+    let mouseStartPt = { x: 0, y: 0 };
+
+    zoomViewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = zoomViewport.getBoundingClientRect();
+      const cursorX = e.clientX - (rect.left + rect.width * 0.5);
+      const cursorY = e.clientY - (rect.top + rect.height * 0.5);
+
+      const prevScale = mapScale;
+      const delta = -e.deltaY * 0.0025;
+      mapScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, mapScale + delta));
+      const ratio = mapScale / prevScale;
+
+      mapPanX = cursorX * (1 - ratio) + mapPanX * ratio;
+      mapPanY = cursorY * (1 - ratio) + mapPanY * ratio;
+      updateMapTransform(false);
+    }, { passive: false });
+
+    zoomViewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-reset-pill')) return;
+      isMouseDown2D = true;
+      mouseDragDist = 0;
+      mouseStartPt = { x: e.clientX, y: e.clientY };
+      panStartOffset = { x: mapPanX, y: mapPanY };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDown2D) return;
+      const dx = e.clientX - mouseStartPt.x;
+      const dy = e.clientY - mouseStartPt.y;
+      mouseDragDist = Math.max(mouseDragDist, Math.hypot(dx, dy));
+      if (mapScale > 1.02 && mouseDragDist > 4) {
+        mapPanX = panStartOffset.x + dx;
+        mapPanY = panStartOffset.y + dy;
+        updateMapTransform(true);
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (!isMouseDown2D) return;
+      isMouseDown2D = false;
+      zoomContent.classList.remove('pinching');
+
+      if (mouseDragDist < 6) {
+        const seatDot = e.target.closest ? e.target.closest('.seat-dot') : null;
+        if (seatDot && seatDot.dataset.seatId) {
+          selectSeatOn2DMap(seatById[seatDot.dataset.seatId]);
+        }
+      }
+    });
+
+    // =========================================================================
+    // 4. BUILT-IN ZERO-DEPENDENCY 3D PERSPECTIVE ENGINE (HTML5 CANVAS)
+    // =========================================================================
+    const wrapper3D = document.getElementById('canvas-3d-wrapper');
+    const canvas = document.getElementById('theater-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let cw = 400;
+    let ch = 800;
+    let dpr = 1;
+
+    function resizeCanvas() {
+      cw = wrapper3D.clientWidth || window.innerWidth;
+      ch = wrapper3D.clientHeight || window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const camPos = { x: 0, y: 14, z: 16 };
+    const lookAt = { x: 0, y: 4, z: 4 };
+    let headYaw = 0;
+    let headPitch = 0;
+    let opticalCenterYRatio = 0.37;
+    let is3DViewActive = false;
+
+    let basisF = { x: 0, y: 0, z: -1 };
+    let basisR = { x: 1, y: 0, z: 0 };
+    let basisU = { x: 0, y: 1, z: 0 };
+    let focalLength = 240;
+
+    function updateCameraBasis() {
+      const tx = lookAt.x + headYaw;
+      const ty = lookAt.y + headPitch;
+      const tz = lookAt.z;
+
+      let fx = tx - camPos.x;
+      let fy = ty - camPos.y;
+      let fz = tz - camPos.z;
+      const flen = Math.hypot(fx, fy, fz) || 1;
+      fx /= flen; fy /= flen; fz /= flen;
+
+      let rx = -fz;
+      let ry = 0;
+      let rz = fx;
+      const rlen = Math.hypot(rx, ry, rz) || 1;
+      rx /= rlen; ry /= rlen; rz /= rlen;
+
+      const ux = ry * fz - rz * fy;
+      const uy = rz * fx - rx * fz;
+      const uz = rx * fy - ry * fx;
+
+      basisF = { x: fx, y: fy, z: fz };
+      basisR = { x: rx, y: ry, z: rz };
+      basisU = { x: ux, y: uy, z: uz };
+
+      const horizFovRad = 80 * (Math.PI / 180);
+      focalLength = (cw * 0.5) / Math.tan(horizFovRad * 0.5);
+    }
+
+    function project3D(wx, wy, wz) {
+      const dx = wx - camPos.x;
+      const dy = wy - camPos.y;
+      const dz = wz - camPos.z;
+
+      const cz = dx * basisF.x + dy * basisF.y + dz * basisF.z;
+      if (cz <= 0.15) return null;
+
+      const cx = dx * basisR.x + dy * basisR.y + dz * basisR.z;
+      const cy = dx * basisU.x + dy * basisU.y + dz * basisU.z;
+
+      const scale = focalLength / cz;
+      return {
+        x: cw * 0.5 + cx * scale,
+        y: ch * opticalCenterYRatio - cy * scale,
+        cz: cz,
+        scale: scale
+      };
+    }
+
+    function drawPolygon(pts, fillStyle, strokeStyle = null, lineWidth = 1) {
+      for (let i = 0; i < pts.length; i++) {
+        if (!pts[i]) return;
+      }
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.closePath();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    // =========================================================================
+    // 5. RENDER THE 3D IMAX SCREEN ("DUNE" SCENE) & ACOUSTIC HALL WALLS
+    // =========================================================================
+    function renderAuditoriumAndScreen() {
+      ctx.fillStyle = '#08070a';
+      ctx.fillRect(0, 0, cw, ch);
+
+      const sTL = project3D(-HALF_SCREEN_W, SCREEN_TOP_Y, 0);
+      const sTR = project3D(HALF_SCREEN_W, SCREEN_TOP_Y, 0);
+      const sBR = project3D(HALF_SCREEN_W, THANE_SPEC.screenBottomY, 0);
+      const sBL = project3D(-HALF_SCREEN_W, THANE_SPEC.screenBottomY, 0);
+      const sCenter = project3D(0, SCREEN_CENTER_Y, 0);
+
+      if (sCenter) {
+        const glowRadius = Math.max(cw, ch) * 0.75;
+        const glow = ctx.createRadialGradient(
+          sCenter.x, sCenter.y, 10,
+          sCenter.x, sCenter.y, glowRadius
+        );
+        glow.addColorStop(0, 'rgba(218, 165, 112, 0.25)');
+        glow.addColorStop(0.5, 'rgba(140, 85, 50, 0.08)');
+        glow.addColorStop(1, 'rgba(8, 7, 10, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, cw, ch);
+      }
+
+      // Draw Base Front Stage Floor Apron (from Z = 0 to Row A)
+      const hw = THANE_SPEC.hallHalfWidth;
+      const fFL = project3D(-hw, 0, 0.2);
+      const fFR = project3D(hw, 0, 0.2);
+      const fBR = project3D(hw, 0, 5.5);
+      const fBL = project3D(-hw, 0, 5.5);
+      drawPolygon([fFL, fFR, fBR, fBL], '#0b0a0e');
+
+      // Side Acoustic Walls & Sconces
+      [-hw, hw].forEach(wallX => {
+        const wFrontTop = project3D(wallX, 13.0, 0);
+        const wFrontBot = project3D(wallX, 0, 0);
+        const wBackBot  = project3D(wallX, 0, 24.5);
+        const wBackTop  = project3D(wallX, 13.0, 24.5);
+        drawPolygon([wFrontTop, wBackTop, wBackBot, wFrontBot], 'rgba(16, 16, 22, 0.92)');
+
+        for (let z = 3.5; z <= 21; z += 3.5) {
+          const scTop = project3D(wallX * 0.99, 6.2 + z * 0.14, z);
+          const scBot = project3D(wallX * 0.99, 5.0 + z * 0.14, z);
+          if (scTop && scBot) {
+            ctx.strokeStyle = 'rgba(124, 227, 179, 0.35)';
+            ctx.lineWidth = Math.max(1.5, scTop.scale * 0.09);
+            ctx.beginPath();
+            ctx.moveTo(scTop.x, scTop.y);
+            ctx.lineTo(scBot.x, scBot.y);
+            ctx.stroke();
+          }
+        }
+      });
+
+      if (sTL && sTR && sBR && sBL) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(sTL.x, sTL.y);
+        ctx.lineTo(sTR.x, sTR.y);
+        ctx.lineTo(sBR.x, sBR.y);
+        ctx.lineTo(sBL.x, sBL.y);
+        ctx.closePath();
+        ctx.clip();
+
+        const topY = Math.min(sTL.y, sTR.y);
+        const botY = Math.max(sBL.y, sBR.y);
+        const skyGrad = ctx.createLinearGradient(0, topY, 0, botY);
+        skyGrad.addColorStop(0, '#c49d79');
+        skyGrad.addColorStop(0.52, '#dcbda0');
+        skyGrad.addColorStop(1, '#8c6243');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, topY - 10, cw, botY - topY + 20);
+
+        const d1L = project3D(-HALF_SCREEN_W, 4.9, 0);
+        const d1M = project3D(-1.5, 5.7, 0);
+        const d1R = project3D(HALF_SCREEN_W, 5.4, 0);
+        if (d1L && d1M && d1R) {
+          ctx.fillStyle = '#b08867';
+          ctx.beginPath();
+          ctx.moveTo(d1L.x, d1L.y);
+          ctx.quadraticCurveTo(d1M.x, d1M.y, d1R.x, d1R.y);
+          ctx.lineTo(sBR.x, sBR.y);
+          ctx.lineTo(sBL.x, sBL.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        const d2L = project3D(-HALF_SCREEN_W, 5.5, 0);
+        const d2M = project3D(0.5, 4.2, 0);
+        const d2R = project3D(HALF_SCREEN_W, 2.9, 0);
+        if (d2L && d2M && d2R) {
+          const midGrad = ctx.createLinearGradient(d2L.x, d2L.y, d2R.x, sBR.y);
+          midGrad.addColorStop(0, '#9c7250');
+          midGrad.addColorStop(0.55, '#7c5236');
+          midGrad.addColorStop(1, '#462919');
+          ctx.fillStyle = midGrad;
+          ctx.beginPath();
+          ctx.moveTo(d2L.x, d2L.y);
+          ctx.quadraticCurveTo(d2M.x, d2M.y, d2R.x, d2R.y);
+          ctx.lineTo(sBR.x, sBR.y);
+          ctx.lineTo(sBL.x, sBL.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        const d3L = project3D(-4.2, 1.2, 0);
+        const d3M = project3D(2.8, 3.8, 0);
+        const d3R = project3D(HALF_SCREEN_W, 4.7, 0);
+        if (d3L && d3M && d3R) {
+          ctx.fillStyle = '#c8a07b';
+          ctx.beginPath();
+          ctx.moveTo(d3L.x, d3L.y);
+          ctx.quadraticCurveTo(d3M.x, d3M.y, d3R.x, d3R.y);
+          ctx.lineTo(sBR.x, sBR.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        const figTop = project3D(-0.4, 4.58, 0);
+        const figBot = project3D(-0.4, 4.18, 0);
+        if (figTop && figBot) {
+          const figW = Math.max(2, figTop.scale * 0.08);
+          ctx.fillStyle = '#1c130e';
+          ctx.beginPath();
+          ctx.arc(figTop.x, figTop.y, figW * 0.65, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(figTop.x - figW * 0.5, figTop.y, figW, figBot.y - figTop.y);
+        }
+
+        ctx.restore();
+        drawPolygon([sTL, sTR, sBR, sBL], null, 'rgba(255, 238, 215, 0.35)', 1.5);
+      }
+    }
+
+    // =========================================================================
+    // 6. RENDER STEPPED STADIUM RISERS & GROUNDED 3D VIP-RED CINEMA CHAIRS
+    // (Prevents corner seats like J-1 & J-26 from ever looking like they float)
+    // =========================================================================
+    const VIP_RED_CUSHION = '#4D2A35';
+    const VIP_RED_BACKREST = '#7A1E2D';
+
+    function renderStadiumRisersAndSeats3D() {
+      const hw = THANE_SPEC.hallHalfWidth;
+
+      // 1. Draw Wall-to-Wall Stepped Stadium Risers Under Every Row (Front-to-Back relative to Screen)
+      for (let r = 0; r < rowsMeta.length; r++) {
+        const rm = rowsMeta[r];
+        // Only draw risers that are in front of (or right under) the camera
+        if (rm.zFront > camPos.z + 0.5) continue;
+
+        const zF = rm.zFront;
+        const zB = Math.min(rm.zBack, camPos.z - 0.2);
+        if (zB <= zF) continue;
+
+        // A. Vertical Riser Step Face (connects previous row's floor height to this row's floor height)
+        if (rm.y > 0) {
+          const vTL = project3D(-hw, rm.y, zF);
+          const vTR = project3D(hw, rm.y, zF);
+          const vBR = project3D(hw, rm.prevY, zF);
+          const vBL = project3D(-hw, rm.prevY, zF);
+          drawPolygon([vTL, vTR, vBR, vBL], '#0e0d12', 'rgba(255, 255, 255, 0.05)', 1);
+        }
+
+        // B. Horizontal Stadium Floor Tread Platform (from left wall to right wall)
+        const tFL = project3D(-hw, rm.y, zF);
+        const tFR = project3D(hw, rm.y, zF);
+        const tBR = project3D(hw, rm.y, zB);
+        const tBL = project3D(-hw, rm.y, zB);
+        drawPolygon(
+          [tFL, tFR, tBR, tBL],
+          rm.isCrossAisleRow ? '#15141c' : '#121117',
+          'rgba(255, 235, 205, 0.06)',
+          1
+        );
+
+        // C. Low Cross-Aisle Modesty Rail in front of Row J's Wide 26-Seat Tier
+        if (rm.isCrossAisleRow) {
+          const railZ = rm.zCenter - 0.55;
+          const rTL = project3D(-hw + 0.4, rm.y + 0.52, railZ);
+          const rTR = project3D(hw - 0.4, rm.y + 0.52, railZ);
+          const rBR = project3D(hw - 0.4, rm.y, railZ);
+          const rBL = project3D(-hw + 0.4, rm.y, railZ);
+          drawPolygon([rTL, rTR, rBR, rBL], 'rgba(20, 19, 26, 0.92)', 'rgba(124, 227, 179, 0.22)', 1);
+        }
+      }
+
+      // 2. Sort & Draw All Visible 3D Chairs (Anchored to Their Stadium Steps)
+      const visibleSeats = [];
+      for (let i = 0; i < seats.length; i++) {
+        const s = seats[i];
+        const dx = s.x - camPos.x;
+        const dy = (s.y + 0.45) - camPos.y;
+        const dz = s.z - camPos.z;
+        const cz = dx * basisF.x + dy * basisF.y + dz * basisF.z;
+
+        if (cz > 0.45 && cz < 38) {
+          const distSq = dx * dx + dy * dy + dz * dz;
+          visibleSeats.push({ seat: s, distSq: distSq });
+        }
+      }
+
+      visibleSeats.sort((a, b) => b.distSq - a.distSq);
+
+      for (let i = 0; i < visibleSeats.length; i++) {
+        const s = visibleSeats[i].seat;
+
+        const w = 0.25;
+        const yFloor = s.y;          // Exact stadium platform floor height
+        const yCushion = s.y + 0.24;
+        const yArm = s.y + 0.46;
+        const yTop = s.y + 0.86;
+        const zBack = s.z + 0.16;
+        const zFront = s.z - 0.22;
+
+        // A. Solid Dark Under-Seat Pedestal Skirt (Eliminates any gap between chair and floor)
+        const pTL = project3D(s.x - w * 0.88, yCushion, zBack);
+        const pTR = project3D(s.x + w * 0.88, yCushion, zBack);
+        const pBR = project3D(s.x + w * 0.88, yFloor, zBack);
+        const pBL = project3D(s.x - w * 0.88, yFloor, zBack);
+        drawPolygon([pTL, pTR, pBR, pBL], '#0b0b0f');
+
+        // B. 3D Side Armrest Panels Reaching the Floor (Critical when viewing diagonally from J-1 or J-26)
+        // Draw the side panel facing the camera last for proper 3D occlusion
+        const camIsToRight = camPos.x > s.x;
+        const sideOrder = camIsToRight ? [-1, 1] : [1, -1];
+
+        // First draw far-side armrest panel
+        const farSideX = s.x + sideOrder[0] * (w + 0.02);
+        const faTF = project3D(farSideX, yArm, zFront);
+        const faTB = project3D(farSideX, yArm, zBack);
+        const faBB = project3D(farSideX, yFloor, zBack);
+        const faBF = project3D(farSideX, yFloor, zFront);
+        drawPolygon([faTF, faTB, faBB, faBF], '#14151c');
+
+        // C. Seat Cushion (Uniform VIP Red)
+        const cBL = project3D(s.x - w, yCushion, zBack);
+        const cBR = project3D(s.x + w, yCushion, zBack);
+        const cFR = project3D(s.x + w, yCushion, zFront);
+        const cFL = project3D(s.x - w, yCushion, zFront);
+        drawPolygon([cBL, cBR, cFR, cFL], VIP_RED_CUSHION);
+
+        // D. Sculpted VIP Red Velvet Backrest (Grounded to yFloor)
+        const bTL = project3D(s.x - w, yTop, zBack);
+        const bTR = project3D(s.x + w, yTop, zBack);
+        const bBR = project3D(s.x + w, yFloor + 0.08, zBack);
+        const bBL = project3D(s.x - w, yFloor + 0.08, zBack);
+
+        if (bTL && bTR && bBR && bBL) {
+          drawPolygon([bTL, bTR, bBR, bBL], VIP_RED_BACKREST, 'rgba(8, 9, 12, 0.8)', 1);
+
+          // Warm golden rim-light on top edge of backrest
+          ctx.strokeStyle = 'rgba(245, 195, 150, 0.44)';
+          ctx.lineWidth = Math.max(1.2, bTL.scale * 0.045);
+          ctx.beginPath();
+          ctx.moveTo(bTL.x, bTL.y);
+          ctx.lineTo(bTR.x, bTR.y);
+          ctx.stroke();
+        }
+
+        // E. Near-Side 3D Armrest Panel (Anchors the side profile of the row flush to the stadium step)
+        const nearSideX = s.x + sideOrder[1] * (w + 0.02);
+        const naTF = project3D(nearSideX, yArm, zFront);
+        const naTB = project3D(nearSideX, yArm, zBack);
+        const naBB = project3D(nearSideX, yFloor, zBack);
+        const naBF = project3D(nearSideX, yFloor, zFront);
+        drawPolygon([naTF, naTB, naBB, naBF], '#171821', 'rgba(255, 255, 255, 0.07)', 0.8);
+      }
+    }
+
+    function renderFrame() {
+      updateCameraBasis();
+      renderAuditoriumAndScreen();
+      renderStadiumRisersAndSeats3D();
+      requestAnimationFrame(renderFrame);
+    }
+    requestAnimationFrame(renderFrame);
+
+    // =========================================================================
+    // 7. CAMERA SWOOP ANIMATION ENGINE
+    // =========================================================================
+    let activeTweenId = 0;
+
+    function animateCameraTween(startState, endState, durationMs, onDone) {
+      const tweenId = ++activeTweenId;
+      const startTime = performance.now();
+
+      function step(now) {
+        if (tweenId !== activeTweenId) return;
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / durationMs);
+        const ease = t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        camPos.x = startState.camX + (endState.camX - startState.camX) * ease;
+        camPos.y = startState.camY + (endState.camY - startState.camY) * ease;
+        camPos.z = startState.camZ + (endState.camZ - startState.camZ) * ease;
+
+        lookAt.x = startState.lookX + (endState.lookX - startState.lookX) * ease;
+        lookAt.y = startState.lookY + (endState.lookY - startState.lookY) * ease;
+        lookAt.z = startState.lookZ + (endState.lookZ - startState.lookZ) * ease;
+
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else if (onDone) {
+          onDone();
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function enter3DSeatPOV() {
+      if (!selectedSeat) return;
+      is3DViewActive = true;
+      headYaw = 0;
+      headPitch = 0;
+      opticalCenterYRatio = 0.37;
+
+      const sheet = document.getElementById('pov-bottom-sheet');
+      sheet.classList.remove('minimized');
+
+      document.getElementById('map-2d-layer').classList.add('hidden');
+
+      const startState = {
+        camX: selectedSeat.x * 0.4,
+        camY: selectedSeat.y + 11.0,
+        camZ: selectedSeat.z + 4.0,
+        lookX: selectedSeat.x,
+        lookY: selectedSeat.y,
+        lookZ: selectedSeat.z - 1.5
+      };
+
+      const targetAimY = SCREEN_CENTER_Y - 1.15 - (selectedSeat.rowIndex * 0.06);
+
+      const endState = {
+        camX: selectedSeat.x,
+        camY: selectedSeat.y + 1.05,
+        camZ: selectedSeat.z + 0.15,
+        lookX: 0,
+        lookY: targetAimY,
+        lookZ: 0
+      };
+
+      animateCameraTween(startState, endState, 1450);
+
+      setTimeout(() => {
+        document.getElementById('pov-top-bar').classList.add('visible');
+        sheet.classList.add('visible');
+      }, 850);
+    }
+
+    function returnTo2DMap() {
+      is3DViewActive = false;
+      headYaw = 0;
+      headPitch = 0;
+
+      document.getElementById('pov-top-bar').classList.remove('visible');
+      document.getElementById('pov-bottom-sheet').classList.remove('visible');
+
+      const startState = {
+        camX: camPos.x,
+        camY: camPos.y,
+        camZ: camPos.z,
+        lookX: lookAt.x,
+        lookY: lookAt.y,
+        lookZ: lookAt.z
+      };
+
+      const endState = {
+        camX: selectedSeat.x * 0.3,
+        camY: selectedSeat.y + 11.5,
+        camZ: selectedSeat.z + 4.2,
+        lookX: selectedSeat.x,
+        lookY: selectedSeat.y,
+        lookZ: selectedSeat.z - 1.0
+      };
+
+      animateCameraTween(startState, endState, 1050, () => {
+        document.getElementById('map-2d-layer').classList.remove('hidden');
+      });
+    }
+
+    document.getElementById('sheet-handle-area').addEventListener('click', () => {
+      const sheet = document.getElementById('pov-bottom-sheet');
+      const isMin = sheet.classList.toggle('minimized');
+      opticalCenterYRatio = isMin ? 0.46 : 0.37;
+    });
+
+    document.getElementById('btn-continue-3d').addEventListener('click', enter3DSeatPOV);
+    document.getElementById('btn-change-seat').addEventListener('click', returnTo2DMap);
+    document.getElementById('btn-back-to-2d').addEventListener('click', returnTo2DMap);
+
+    document.getElementById('btn-book-now').addEventListener('click', () => {
+      alert(`Checkout Confirmed\nCinépolis Lakeshore Mall IMAX\nRow ${selectedSeat.row}, Seat ${selectedSeat.col} (${selectedSeat.tier})\nTotal: ₹${selectedSeat.price}`);
+    });
+
+    // =========================================================================
+    // 8. TOUCH & MOUSE DRAGGING TO LOOK AROUND IN 3D POV
+    // =========================================================================
+    let isDragging3D = false;
+    let startPt3D = { x: 0, y: 0 };
+
+    wrapper3D.addEventListener('pointerdown', (e) => {
+      if (!is3DViewActive) return;
+      isDragging3D = true;
+      startPt3D = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging3D || !is3DViewActive) return;
+      const dx = e.clientX - startPt3D.x;
+      const dy = e.clientY - startPt3D.y;
+      headYaw = Math.max(-7, Math.min(7, -dx * 0.03));
+      headPitch = Math.max(-3.5, Math.min(3.5, dy * 0.02));
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDragging3D = false;
+    });
+
+    wrapper3D.addEventListener('touchstart', (e) => {
+      if (!is3DViewActive || !e.touches[0]) return;
+      isDragging3D = true;
+      startPt3D = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging3D || !is3DViewActive || !e.touches[0]) return;
+      const dx = e.touches[0].clientX - startPt3D.x;
+      const dy = e.touches[0].clientY - startPt3D.y;
+      headYaw = Math.max(-7, Math.min(7, -dx * 0.03));
+      headPitch = Math.max(-3.5, Math.min(3.5, dy * 0.02));
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      isDragging3D = false;
+    });
+  </script>
+</body>
+</html>
